@@ -1,0 +1,9 @@
+.gradle/
+.kotlin/
+local.properties
+**/build/
+*.jks
+evidence/*.perfetto-trace
+**/__pycache__/
+dist/
+app/.cxx/
