@@ -20,7 +20,7 @@ P_CPU_mW = Σ E_CPU_J / Σ valid_duration_s × 1,000
 
 ## 测试顺序和条件
 
-每种模式采用 A1（基线）→ B1（开启）→ B2（开启重复）→ A2（基线复测）。支持仅记录、记录小窗、仪表 OSD、文字 OSD、双窗和单独的 100 ms 采样测试。
+每种模式采用 A1（基线）→ B1（开启）→ B2（开启重复）→ A2（基线复测）。支持仅记录、记录小窗、文字 OSD、双窗和单独的 100 ms 采样测试。
 
 - 所有阶段使用相同独立观测器、相同读取间隔、相同游戏画面、亮度、刷新率与供电状态。
 - 测试程序先等待预热，再保存原始 JSONL；准备和切换阶段不计入测量。
@@ -37,7 +37,7 @@ P_CPU_mW = Σ E_CPU_J / Σ valid_duration_s × 1,000
 & 'C:\DevTools\Activate-DevTools.ps1'
 .\tools\build-power-probe.ps1
 python -m unittest discover -s tools -p test_power_stats.py -v
-python tools\power_benchmark.py --serial YOUR_DEVICE_SERIAL --game com.miHoYo.Nap --game-name 绝区零 --modes recording small osd-gauge osd-text both --seconds 120 --warmup 30 --scenario "实际观察到的固定画面" --output evidence\power-run-new
+python tools\power_benchmark.py --serial YOUR_DEVICE_SERIAL --game com.miHoYo.Nap --game-name 绝区零 --modes recording small osd-text both --seconds 120 --warmup 30 --scenario "实际观察到的固定画面" --output evidence\power-run-new
 ```
 
 测试使用本工程 Benchmark APK。它与 Release 一样启用 R8 和资源压缩，关闭可调试标志，仅增加不导出的测试入口；Debug 也开放这些入口，但 Debug 的功耗不能替代优化版测量。常规用户操作不依赖这些入口。每轮原始数据保存 SHA-256；`report.json` 包含阶段状态和计算结果。中断测试后应确认本 App 服务已退出，并按报告中的原始状态恢复 QPT。

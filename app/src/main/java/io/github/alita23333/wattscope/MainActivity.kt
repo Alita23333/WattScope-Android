@@ -55,7 +55,6 @@ class MainActivity : ComponentActivity() {
             val mode = intent.getStringExtra("mode") ?: return
             if (mode !in listOf("baseline", "recording", "small", "osd-gauge", "osd-text", "both"))
                 return
-            app.settings.osdTemplate = if (mode == "osd-text") "text" else "gauges"
             if (mode == "baseline") {
                 ContextCompat.startForegroundService(
                     this,

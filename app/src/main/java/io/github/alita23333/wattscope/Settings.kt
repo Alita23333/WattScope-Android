@@ -59,12 +59,6 @@ class Settings(context: Context) {
             set("smallMetric", v)
         }
 
-    var osdTemplate: String
-        get() = text("osdTemplate", "gauges")
-        set(v) {
-            set("osdTemplate", v)
-        }
-
     var osdMetrics: List<String>
         get() =
             text("osdMetrics", Metrics.defaultOsd.joinToString(",")).split(',').filter {

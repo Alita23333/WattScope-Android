@@ -38,7 +38,7 @@ Miuix 风格提供深浅主题，默认舒适布局，可切换紧凑布局。�
 - `app/build/outputs/apk/benchmark/app-benchmark.apk`：`assembleBenchmark` 生成的优化验证版本。
 - `app/build/outputs/apk/debug/app-debug.apk`：调试版本，不作为功耗验收的安装包。
 
-v0.1.0 APK 沿用开发版本的 Android 调试签名。自行构建时使用本机签名，签名不同的 APK 无法覆盖安装，切换前请先导出记录。
+发布版 APK 沿用开发版本的 Android 调试签名。自行构建时使用本机签名，签名不同的 APK 无法覆盖安装，切换前请先导出记录。
 
 所有构建均只包含 ARM64。AGP 8.7 与部分新版 AndroidX 的 UAST 检查存在兼容问题：仅关闭未使用的 LiveData 专用检查，`produceState` 的已赋值误报在对应文件局部说明并抑制；其他发布检查继续运行。完整结果见构建日志和 Lint 报告。
 

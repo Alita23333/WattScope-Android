@@ -21,7 +21,7 @@ from power_stats import compare_abba, read_trial
 PKG = "io.github.alita23333.wattscope"
 SERVICE = PKG + "/.MonitorService"
 REMOTE = "/data/local/tmp/wattscope-next-validation/cpu-power-probe"
-MODES = ("recording", "small", "osd-gauge", "osd-text", "both")
+MODES = ("recording", "small", "osd-text", "both")
 
 
 def utc():
@@ -95,7 +95,7 @@ def state_valid(mode, start, end, env0, env1, seconds):
         "screen_brightness", "screen_brightness_mode", "peak_refresh_rate", "min_refresh_rate", "supply_class"))
     if mode == "baseline":
         return foreground and stable and not start.get("collector") and not end.get("collector")
-    small, osd = mode in ("small", "both"), mode in ("osd-gauge", "osd-text", "both")
+    small, osd = mode in ("small", "both"), mode in ("osd-text", "both")
     running = all(s.get("collector") and s.get("recording") == "recording" and
                   s.get("small") == small and s.get("osd") == osd and
                   s.get("currentPackage")==env0["game_package"] for s in (start, end))

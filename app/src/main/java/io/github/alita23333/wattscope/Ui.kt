@@ -590,18 +590,6 @@ fun SettingsPage(app: WattApp, live: LiveState) {
         item {
             Panel {
                 Text("OSD 数据面板", style = MaterialTheme.typography.titleMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WChip(
-                        prefs.osdTemplate == "gauges",
-                        { prefs.osdTemplate = "gauges" },
-                        label = { Text("仪表＋文字") },
-                    )
-                    WChip(
-                        prefs.osdTemplate == "text",
-                        { prefs.osdTemplate = "text" },
-                        label = { Text("纯文字") },
-                    )
-                }
                 WSecondaryButton(onClick = { editOsd = true }) {
                     Text("指标与排序 · ${prefs.osdMetrics.size} 项")
                 }
@@ -813,6 +801,7 @@ fun MetricPicker(prefs: Settings, live: LiveState, onDismiss: () -> Unit) {
     val ids =
         (selected +
                 Metrics.defaultOsd +
+                listOf("cpu.usage", "gpu.usage", "gpu.freq", "battery.capacity") +
                 live.metrics.map { it.id } +
                 live.health.keys +
                 (0..7).flatMap { listOf("cpu.$it.freq", "cpu.$it.usage") })

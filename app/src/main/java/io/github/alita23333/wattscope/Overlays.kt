@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.*
 import android.os.SystemClock
 import android.provider.Settings as AndroidSettings
+import android.text.TextPaint
+import android.text.TextUtils
 import android.view.*
 import kotlin.math.*
 
@@ -38,18 +40,13 @@ class Overlays(
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT,
             )
-        lp.gravity = Gravity.TOP or Gravity.START
-        val defaultX =
-            if (kind == "small") 24
-            else
-                max(
-                    24,
-                    context.resources.displayMetrics.widthPixels -
-                        (252 * density * settings.int("osd.scale", 100) / 100f).toInt() -
-                        48,
-                )
-        lp.x = settings.int("$key.x", defaultX)
+        lp.gravity = Gravity.TOP or if (kind == "small") Gravity.START else Gravity.LEFT
+        lp.x = settings.int("$key.x", 24)
         lp.y = settings.int("$key.y", if (kind == "small") 220 else 330)
+        if (kind == "osd") {
+            p.measure(0, 0)
+            p.placeOsd(lp)
+        }
         return try {
             wm.addView(p, lp)
             p
@@ -98,7 +95,10 @@ class Overlays(
     }
 
     private inner class Panel(val kind: String) : View(context) {
-        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val p = TextPaint(Paint.ANTI_ALIAS_FLAG)
+        private val valueTypeface = Typeface.create("monospace", Typeface.NORMAL)
+        private var osdFont = 12f
+        private var osdRows = emptyList<String>()
         private var state = LiveState()
         private var rawX = 0f
         private var rawY = 0f
@@ -129,20 +129,7 @@ class Overlays(
                 revision = r
                 requestLayout()
             }
-            val ids =
-                if (kind == "small") listOf(settings.smallMetric)
-                else
-                    settings.osdMetrics +
-                        listOf(
-                            "cpu.usage",
-                            "gpu.usage",
-                            "battery.capacity",
-                            "temp.battery",
-                            "gpu.freq",
-                        ) +
-                        s.latest?.values.orEmpty().keys.filter {
-                            it.startsWith("cpu.cluster") && it.endsWith(".freq")
-                        }
+            val ids = if (kind == "small") listOf(settings.smallMetric) else settings.osdMetrics
             val key =
                 "$r:${s.recording}:${s.collector}:${s.latest?.charging}:${s.health[settings.smallMetric]?.state}:" +
                     ids.joinToString(";") { id -> Metrics.format(id, value(id)) }
@@ -173,16 +160,46 @@ class Overlays(
                 widthDp = 84f
                 heightDp = 40f
             } else {
-                val n = settings.osdMetrics.size
-                val gauges = settings.osdTemplate == "gauges"
-                widthDp = if (gauges) 252f else 193f
-                heightDp =
-                    max(if (gauges) 220f else 36f, 30f + n * (settings.int("osd.font", 12) + 8))
+                osdRows = settings.osdMetrics.ifEmpty { listOf("fps") }
+                osdFont = settings.int("osd.font", 12).toFloat()
+                widthDp = max(136f, osdFont * 11.5f)
+                heightDp = 12f + osdRows.size * (osdFont + 3f)
+                val bounds = wm.currentWindowMetrics.bounds
+                scale =
+                    minOf(
+                        scale,
+                        bounds.width() / (widthDp * density),
+                        bounds.height() / (heightDp * density),
+                    )
             }
             setMeasuredDimension(
-                (widthDp * density * scale).toInt(),
-                (heightDp * density * scale).toInt(),
+                (widthDp * density * scale).roundToInt(),
+                (heightDp * density * scale).roundToInt(),
             )
+        }
+
+        fun placeOsd(lp: WindowManager.LayoutParams): Boolean {
+            val bounds = wm.currentWindowMetrics.bounds
+            val key = "$kind.$orientation"
+            val defaultX = bounds.width() - measuredWidth - (16 * density).roundToInt()
+            val x =
+                settings.int("$key.x", defaultX).coerceIn(0, max(0, bounds.width() - measuredWidth))
+            val y =
+                settings.int("$key.y", 330).coerceIn(0, max(0, bounds.height() - measuredHeight))
+            if (lp.x == x && lp.y == y) return false
+            lp.x = x
+            lp.y = y
+            return true
+        }
+
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            if (kind != "osd") return
+            post {
+                if (!isAttachedToWindow) return@post
+                val lp = layoutParams as WindowManager.LayoutParams
+                if (placeOsd(lp)) wm.updateViewLayout(this, lp)
+            }
         }
 
         private fun text(
@@ -219,8 +236,8 @@ class Overlays(
                 0f,
                 widthDp,
                 heightDp,
-                if (kind == "small") 13f else 16f,
-                if (kind == "small") 13f else 16f,
+                if (kind == "small") 13f else 9f,
+                if (kind == "small") 13f else 9f,
                 p,
             )
             p.alpha = 255
@@ -253,100 +270,30 @@ class Overlays(
                 val tw = p.measureText(v)
                 text(canvas, Metrics.unit(id), min(19f + tw, 65f), 25f, 9f, muted)
             } else {
-                val gauges = settings.osdTemplate == "gauges"
-                var left = 12f
-                if (gauges) {
-                    gauge(
-                        canvas,
-                        "CPU",
-                        value("cpu.usage"),
-                        "${Metrics.format("gpu.freq",if(state.collector)state.latest?.values?.filterKeys{it.startsWith("cpu.cluster")&&it.endsWith(".freq")}?.values?.filterNotNull()?.maxOrNull()else null)} MHz",
-                        50f,
-                        44f,
-                        accent,
-                    )
-                    gauge(
-                        canvas,
-                        "GPU",
-                        value("gpu.usage"),
-                        "${Metrics.format("gpu.freq",value("gpu.freq"))} MHz",
-                        50f,
-                        112f,
-                        accent,
-                    )
-                    gauge(
-                        canvas,
-                        "BAT",
-                        value("battery.capacity"),
-                        "${Metrics.format("temp.battery",value("temp.battery"))} °C",
-                        50f,
-                        180f,
-                        accent,
-                    )
-                    left = 98f
-                }
-                val font = settings.int("osd.font", 12).toFloat()
-                var y = 22f
-                for (id in settings.osdMetrics) {
-                    val label = shortLabel(id)
-                    val v = value(id)
+                var baseline = 6f + osdFont
+                for (id in osdRows) {
+                    val value = value(id)
                     val unit = Metrics.unit(id)
-                    text(canvas, label, left, y, font - 1, muted)
-                    p.textSize = font
-                    p.typeface = Typeface.create("monospace", Typeface.NORMAL)
-                    val str = Metrics.format(id, v) + if (unit.isNotBlank()) " $unit" else ""
-                    val tw = p.measureText(str)
-                    text(
-                        canvas,
-                        str,
-                        max(left + 51, widthDp - 10 - tw),
-                        y,
-                        font,
-                        if (v == null) Color.GRAY else Color.WHITE,
-                        true,
-                    )
-                    y += font + 8
-                }
-                if (state.recording != "idle") {
-                    p.color =
-                        if (state.recording == "recording") Color.rgb(255, 110, 110)
-                        else Color.rgb(255, 200, 100)
-                    canvas.drawCircle(widthDp - 8, 8f, 2.5f, p)
+                    val label = shortLabel(id)
+                    val number = Metrics.format(id, value)
+                    val reading = if (value == null || unit.isBlank()) number else "$number $unit"
+                    p.textSize = osdFont
+                    p.typeface = valueTypeface
+                    p.color = if (value == null) muted else Color.WHITE
+                    p.textAlign = Paint.Align.RIGHT
+                    val right = widthDp - 8f
+                    canvas.drawText(reading, right, baseline, p)
+                    val labelWidth = (right - p.measureText(reading) - 22f).coerceAtLeast(0f)
+                    p.textAlign = Paint.Align.LEFT
+                    p.typeface = Typeface.DEFAULT
+                    p.textSize = osdFont - 1
+                    p.color = accent
+                    val fitted = TextUtils.ellipsize(label, p, labelWidth, TextUtils.TruncateAt.END)
+                    canvas.drawText(fitted.toString(), 8f, baseline, p)
+                    baseline += osdFont + 3f
                 }
             }
             canvas.restore()
-        }
-
-        private fun gauge(
-            c: Canvas,
-            label: String,
-            v: Double?,
-            sub: String,
-            x: Float,
-            y: Float,
-            color: Int,
-        ) {
-            p.style = Paint.Style.STROKE
-            p.strokeWidth = 5f
-            p.strokeCap = Paint.Cap.ROUND
-            p.color = Color.rgb(66, 78, 92)
-            val rect = RectF(x - 23, y - 23, x + 23, y + 23)
-            c.drawArc(rect, -90f, 360f, false, p)
-            p.color = color
-            c.drawArc(rect, -90f, ((v ?: 0.0).coerceIn(0.0, 100.0) * 3.6).toFloat(), false, p)
-            p.style = Paint.Style.FILL
-            text(
-                c,
-                if (v == null) "—" else "${v.roundToInt()}%",
-                x - 17,
-                y + 1,
-                13f,
-                Color.WHITE,
-                true,
-            )
-            text(c, label, x - 12, y + 13, 8f, Color.LTGRAY)
-            p.textSize = 9f
-            text(c, sub, x - p.measureText(sub) / 2, y + 35, 9f, Color.LTGRAY)
         }
 
         private fun shortLabel(id: String) =
@@ -360,6 +307,10 @@ class Overlays(
                 "temp.gpu" -> "T·GPU"
                 "ram.percent" -> "RAM"
                 "ddr.freq" -> "DDR"
+                "cpu.usage" -> "CPU"
+                "gpu.usage" -> "GPU"
+                "gpu.freq" -> "GPU MHz"
+                "battery.capacity" -> "BAT"
                 else ->
                     id.removePrefix("qpt.")
                         .replace("cpu.cluster", "C")
@@ -385,25 +336,26 @@ class Overlays(
                     val dy = e.rawY - rawY
                     if (hypot(dx, dy) > ViewConfiguration.get(context).scaledTouchSlop) moved = true
                     if (moved && !locked) {
-                        lp.x =
-                            (startX + dx.toInt()).coerceIn(
-                                0,
-                                max(0, context.resources.displayMetrics.widthPixels - width),
-                            )
-                        lp.y =
-                            (startY + dy.toInt()).coerceIn(
-                                0,
-                                max(0, context.resources.displayMetrics.heightPixels - height),
-                            )
+                        val bounds = wm.currentWindowMetrics.bounds
+                        val screenWidth =
+                            if (kind == "osd") bounds.width()
+                            else context.resources.displayMetrics.widthPixels
+                        val screenHeight =
+                            if (kind == "osd") bounds.height()
+                            else context.resources.displayMetrics.heightPixels
+                        lp.x = (startX + dx.toInt()).coerceIn(0, max(0, screenWidth - width))
+                        lp.y = (startY + dy.toInt()).coerceIn(0, max(0, screenHeight - height))
                         runCatching { wm.updateViewLayout(this, lp) }
                     }
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (moved) {
+                    if (moved && !locked) {
                         settings.set("$kind.$orientation.x", lp.x)
                         settings.set("$kind.$orientation.y", lp.y)
-                    } else if (kind == "small" && SystemClock.elapsedRealtime() - lastClick > 500) {
+                    } else if (
+                        !moved && kind == "small" && SystemClock.elapsedRealtime() - lastClick > 500
+                    ) {
                         lastClick = SystemClock.elapsedRealtime()
                         performClick()
                         engine.toggleRecord()

@@ -50,12 +50,12 @@ def main():
     copied = []
     for variant in a.variants:
         src = ROOT / f'app/build/outputs/apk/{variant}/app-{variant}.apk'
-        dest = out / f'WattScope-0.1.0-{variant}.apk'
+        dest = out / f'WattScope-0.1.1-{variant}.apk'
         shutil.copy2(src, dest)
         copied.append(dest)
     sources = source_paths()
     source_manifest = {str(x.relative_to(ROOT)).replace('\\', '/'): digest(x) for x in sources}
-    source_zip = out / 'WattScope-0.1.0-source.zip'
+    source_zip = out / 'WattScope-0.1.1-source.zip'
     with zipfile.ZipFile(source_zip, 'w', compression=zipfile.ZIP_DEFLATED) as z:
         for path in sources:
             z.write(path, 'WattScope/' + str(path.relative_to(ROOT)).replace('\\', '/'))
@@ -67,7 +67,7 @@ def main():
             dest = out / src.name
             shutil.copy2(src, dest)
             copied.append(dest)
-    manifest = {'format': 1, 'version': '0.1.0', 'package': 'io.github.alita23333.wattscope',
+    manifest = {'format': 1, 'version': '0.1.1', 'package': 'io.github.alita23333.wattscope',
                 'source_files': len(sources),
                 'artifacts': {x.name: {'bytes': x.stat().st_size, 'sha256': digest(x)} for x in copied}}
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')

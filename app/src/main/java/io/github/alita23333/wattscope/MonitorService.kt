@@ -2,6 +2,7 @@ package io.github.alita23333.wattscope
 
 import android.app.*
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import java.io.FileDescriptor
@@ -108,7 +109,6 @@ class MonitorService : Service() {
                 .getIntExtra("interval", 500)
                 .takeIf { it in listOf(100, 200, 500, 1000) }
                 ?.let { app.settings.interval = it }
-            app.settings.osdTemplate = if (mode == "osd-text") "text" else "gauges"
             if (mode == "baseline")
                 scope.launch {
                     app.engine.exit()
@@ -169,6 +169,11 @@ class MonitorService : Service() {
                 .put("events", org.json.JSONArray(s.events.takeLast(15).map { it.toString() }))
                 .toString()
         )
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        overlays?.render(app.engine.live.value)
     }
 
     override fun onDestroy() {

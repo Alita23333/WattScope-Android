@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId = "io.github.alita23333.wattscope"
         minSdk = 31; targetSdk = 36
-        versionCode = 1; versionName = "0.1.0"
+        versionCode = 2; versionName = "0.1.1"
         buildConfigField("boolean", "VALIDATION", "false")
         ndk { abiFilters += "arm64-v8a" }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
